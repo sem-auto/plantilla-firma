@@ -3,242 +3,365 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Fichaje rápido (Foto o Firma)</title>
+<title>Fichaje con Foto o Firma</title>
 <style>
-  :root { --gap:18px; --radius:16px; --card:#ffffff; --bg:#eef2f6; --ok:#198754; --warn:#dc3545; }
+  :root { --gap:14px; --radius:14px; --maxw:720px; --statusH:46px; }
   *{ box-sizing:border-box; }
-  html,body{ height:100%; margin:0; font-family:system-ui, Arial, sans-serif; background:var(--bg); color:#111; }
-  .wrap{ max-width:1100px; margin:0 auto; padding:28px 20px 40px; }
-  h1{ margin:0 0 20px; font-size:34px; font-weight:800; color:#0b1b2b; }
-  .top{ display:grid; grid-template-columns:1fr 360px; gap:22px; align-items:start; }
-  .cam{
-    background:var(--card); border-radius:14px; padding:12px; box-shadow:0 8px 28px rgba(0,0,0,.08);
-    display:grid; gap:10px; justify-items:center;
+  html,body{ height:100%; margin:0; }
+  body{
+    background:#f4f6f8; color:#111; font-family:system-ui, Arial, sans-serif;
+    min-height:100dvh; padding:var(--gap); display:grid; place-items:start center;
   }
-  .cam > .frame{ width:100%; aspect-ratio:4/3; background:#000; border-radius:12px; overflow:hidden; }
-  video, canvas.preview{ width:100%; height:100%; object-fit:cover; display:block; }
-  .note{ font-size:12px; color:#6b7280; text-align:center; }
-  .row{
-    background:var(--card); border-radius:14px; padding:12px 12px; box-shadow:0 8px 28px rgba(0,0,0,.08);
-    display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; margin-bottom:14px;
+  .wrap{ width:100%; max-width:var(--maxw); background:#fff; border-radius:var(--radius); box-shadow:0 6px 30px rgba(0,0,0,.08); overflow:hidden; }
+  header{ padding:18px 20px; border-bottom:1px solid #e7ebf0; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1{ font-size:18px; margin:0; font-weight:700; }
+  .row{ display:flex; gap:12px; flex-wrap:wrap; }
+  .field{ flex:1; min-width:220px; }
+  label{ display:block; font-size:13px; color:#555; margin-bottom:6px; }
+  input[type="text"]{
+    width:100%; padding:12px 14px; border:1px solid #d7dde5; border-radius:10px; font-size:16px;
   }
-  .emp{ font-weight:800; color:#0f172a; padding:12px 16px; background:#f7fafc; border-radius:12px; }
-  .btns{ display:flex; gap:10px; flex-wrap:wrap; }
+  .segmented{ display:inline-grid; grid-auto-flow:column; border:1px solid #d7dde5; border-radius:999px; overflow:hidden; }
+  .segmented button{
+    padding:10px 14px; border:0; background:transparent; cursor:pointer; font-weight:600;
+  }
+  .segmented button.active{ background:#111; color:#fff; }
+  .modeTabs{ display:grid; grid-template-columns:1fr 1fr; gap:8px; background:#f1f3f6; padding:6px; border-radius:12px; }
+  .modeTabs button{
+    padding:10px; border:0; border-radius:10px; cursor:pointer; background:transparent; font-weight:700;
+  }
+  .modeTabs button.active{ background:#111; color:#fff; }
+  main{ padding:16px 20px 8px; }
+  .panel{ display:none; margin-top:12px; }
+  .panel.active{ display:block; }
+  .card{ background:#fafbfc; border:1px solid #e7ebf0; border-radius:12px; padding:12px; }
+  video, canvas.preview{ width:100%; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover; }
+  canvas#sig{ width:100%; height:260px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; touch-action:none; }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
   .btn{
-    border:0; border-radius:12px; padding:10px 14px; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.06);
+    padding:12px 16px; border:0; border-radius:12px; cursor:pointer; font-weight:800; letter-spacing:.2px;
+    box-shadow:0 6px 20px rgba(17,17,17,.06);
   }
-  .b-foto{ background:var(--ok); color:#fff; }
-  .b-firma{ background:#1f2937; color:#fff; }
-  .b-sal{ background:#0d6efd; color:#fff; }
-  .b-clear{ background:#e5e7eb; color:#111; }
-  .sigCard{ background:var(--card); border-radius:14px; padding:14px; box-shadow:0 8px 28px rgba(0,0,0,.08); }
-  #sig{ width:100%; height:240px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; touch-action:none; }
+  .btn.primary{ background:#0f62fe; color:#fff; }
+  .btn.secondary{ background:#e9eef6; }
+  .btn.danger{ background:#dc3545; color:#fff; }
   .status{
-    margin-top:16px; background:#fff; border-radius:12px; padding:10px 14px; color:#374151; display:flex; justify-content:space-between;
-    box-shadow:0 8px 28px rgba(0,0,0,.06); font-size:14px;
+    height:var(--statusH); display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px; border-top:1px solid #e7ebf0; color:#444; background:#fff;
   }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .small{ font-size:12px; color:#666; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Fichaje rápido</h1>
-
-  <div class="top">
-    <!-- LISTA DE TRABAJADORES + ACCIONES -->
-    <div id="lista">
-      <!-- Filas generadas por JS a partir del array WORKERS -->
+  <header>
+    <h1>Fichaje</h1>
+    <div class="field" style="flex:2;">
+      <label>Nombre</label>
+      <input id="nombre" type="text" list="empleados" placeholder="Escribe tu nombre..." autocomplete="name" />
+      <datalist id="empleados">
+        <!-- Ajusta esta lista a tus trabajadores -->
+        <option value="Emilio Fernández Muñoz"></option>
+        <option value="Fernando Lloris Sánchez"></option>
+        <option value="Luis Bou García"></option>
+        <option value="Emilio Muñoz Usero"></option>
+      </datalist>
     </div>
+    <div class="field" style="flex:1; min-width:180px;">
+      <label>Tipo</label>
+      <div class="segmented" role="tablist" aria-label="Tipo de fichaje">
+        <button id="tipo_entrada" class="active" data-tipo="entrada">Entrada</button>
+        <button id="tipo_salida" data-tipo="salida">Salida</button>
+      </div>
+    </div>
+    <div class="field" style="flex:1; min-width:180px;">
+      <label>Modo</label>
+      <div class="modeTabs" role="tablist" aria-label="Modo de verificación">
+        <button id="tab_foto" class="active" data-mode="foto">Foto</button>
+        <button id="tab_firma" data-mode="firma">Firma</button>
+      </div>
+    </div>
+  </header>
 
-    <!-- CÁMARA -->
-    <div class="cam">
-      <div class="frame">
+  <main>
+    <!-- PANEL FOTO -->
+    <section id="panel_foto" class="panel active">
+      <div class="card">
         <video id="video" playsinline autoplay muted></video>
-        <canvas id="photoPreview" class="preview" hidden></canvas>
+        <div class="actions">
+          <button id="btn_cam_on" class="btn secondary">Activar cámara</button>
+          <button id="btn_snap" class="btn secondary">Tomar foto</button>
+          <button id="btn_fichar_foto" class="btn primary">Fichar con foto</button>
+        </div>
+        <canvas id="photoCanvas" class="preview" hidden></canvas>
+        <p class="small">La imagen se comprime y se envía de forma segura.</p>
       </div>
-      <div class="btns">
-        <button id="camOn" class="btn b-foto">Encender cámara</button>
-        <button id="snap" class="btn b-clear">Tomar foto</button>
-        <button id="camOff" class="btn b-clear">Apagar cámara</button>
-      </div>
-      <div class="note" id="camNote">Sin acceso a cámara</div>
-    </div>
-  </div>
+    </section>
 
-  <!-- FIRMA -->
-  <div style="margin-top:18px;" class="sigCard">
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
-      <strong>Firma diaria</strong>
-      <div class="btns">
-        <button id="clearSig" class="btn b-clear">Borrar firma</button>
-        <button id="sendSig" class="btn b-firma">Enviar firma</button>
+    <!-- PANEL FIRMA -->
+    <section id="panel_firma" class="panel">
+      <div class="card">
+        <canvas id="sig"></canvas>
+        <div class="actions">
+          <button id="btn_clear_sig" class="btn danger">Borrar firma</button>
+          <button id="btn_fichar_firma" class="btn primary">Fichar con firma</button>
+        </div>
+        <p class="small">Firma con el dedo o con un lápiz digital.</p>
       </div>
-    </div>
-    <canvas id="sig"></canvas>
-    <div class="note">Firma con el dedo o lápiz. La firma se registra en la hoja.</div>
-  </div>
+    </section>
+  </main>
 
-  <!-- STATUS -->
   <div class="status">
-    <div id="status">Listo.</div>
-    <div id="clock"></div>
+    <div id="status_text">Listo.</div>
+    <div class="mono small" id="clock"></div>
   </div>
 </div>
 
-<audio id="beep">
-  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav">
+<audio id="beep_ok" preload="auto">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav" />
 </audio>
 
 <script>
-/* ===== CONFIG ===== */
+/* ====== CONFIG ====== */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
-const WORKERS = [
-  "Ana López Martín",
-  "Carla Gómez Torres",
-  "Luis Fernández Díaz",
-  "Diego Pérez Ruiz"
-];
-const JPEG_QUALITY=0.7, MAX_W=1024, MAX_H=768;
+const JPEG_QUALITY = 0.7;      // 0.5–0.8 recomendado
+const MAX_W = 1024;            // redimensionado máx. ancho
+const MAX_H = 768;             // redimensionado máx. alto
 
-/* ===== ELEMENTOS ===== */
-const $ = s=>document.querySelector(s);
-const lista = $("#lista");
-const statusEl = $("#status");
-const beep = $("#beep");
+/* ====== UI ELEMENTS ====== */
+const el = s => document.querySelector(s);
+const statusEl = el('#status_text');
+const beepOk = el('#beep_ok');
 
-/* ===== RELOJ ===== */
+const nombreEl = el('#nombre');
+let tipo = 'entrada';
+let mode = 'foto';
+
+/* ====== TABS: tipo ====== */
+document.getElementById('tipo_entrada').onclick = (e)=>{ setTipo('entrada', e.target) };
+document.getElementById('tipo_salida').onclick  = (e)=>{ setTipo('salida',  e.target) };
+function setTipo(v, btn){
+  tipo = v;
+  document.querySelectorAll('.segmented button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ====== TABS: mode ====== */
+document.getElementById('tab_foto').onclick = (e)=>{ setMode('foto', e.target) };
+document.getElementById('tab_firma').onclick= (e)=>{ setMode('firma', e.target) };
+function setMode(v, btn){
+  mode = v;
+  document.querySelectorAll('.modeTabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel_'+v).classList.add('active');
+  setStatus(`Modo ${v}.`);
+}
+
+/* ====== CLOCK ====== */
 setInterval(()=>{
-  const d=new Date();
-  $("#clock").textContent = d.toLocaleString("es-ES",{weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const d=new Date(); el('#clock').textContent=
+    d.toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }, 250);
 
-/* ===== LISTA UI ===== */
-WORKERS.forEach(n=>{
-  const row=document.createElement("div");
-  row.className="row";
-  row.innerHTML = `
-    <div class="emp">${n}</div>
-    <div class="btns">
-      <button class="btn b-foto"   data-emp="${n}" data-tipo="entrada" data-mode="foto">Foto ENTRADA</button>
-      <button class="btn b-firma"  data-emp="${n}" data-tipo="entrada" data-mode="firma">Firma ENTRADA</button>
-      <button class="btn b-foto b-sal"   data-emp="${n}" data-tipo="salida"  data-mode="foto">Foto SALIDA</button>
-      <button class="btn b-firma b-sal"  data-emp="${n}" data-tipo="salida"  data-mode="firma">Firma SALIDA</button>
-    </div>`;
-  lista.appendChild(row);
-});
-lista.addEventListener("click", async ev=>{
-  const b = ev.target;
-  if(!(b instanceof HTMLButtonElement)) return;
-  const nombre = b.dataset.emp, tipo = b.dataset.tipo, modo = b.dataset.mode;
+/* ====== STATUS ====== */
+function setStatus(t){ statusEl.textContent = t }
 
-  if(modo==="foto"){
-    await ensureCam();
-    const {blob} = grabFrameToBlob(video, MAX_W, MAX_H, JPEG_QUALITY);
-    await send({nombre, tipo, modo, blob});
-    ok();
-  }else{
-    // preparar envío de firma: guarda el contexto de a quién corresponde
-    pendingSig = {nombre, tipo};
-    setStatus(`Firma pendiente para ${nombre} (${tipo}). Dibuja y pulsa "Enviar firma".`);
-    // scroll a firma
-    document.querySelector(".sigCard").scrollIntoView({behavior:"smooth", block:"center"});
-  }
-});
+/* ====== CAMERA / PHOTO ====== */
+const video = el('#video');
+const photoCanvas = el('#photoCanvas');
+const btnCamOn = el('#btn_cam_on');
+const btnSnap = el('#btn_snap');
+const btnFicharFoto = el('#btn_fichar_foto');
+let stream = null;
+let lastPhotoBlob = null;
 
-/* ===== CÁMARA ===== */
-const video = $("#video");
-const preview = $("#photoPreview");
-const camOn = $("#camOn"), camOff=$("#camOff"), snap=$("#snap"), camNote=$("#camNote");
-let stream=null;
-
-camOn.onclick = ensureCam;
-camOff.onclick = async()=>{ await stopCam(); setStatus("Cámara apagada."); };
-snap.onclick = ()=>{
-  if(!video.videoWidth){ setStatus("Enciende la cámara."); return; }
-  const {canvas} = grabFrameToBlob(video, MAX_W, MAX_H, JPEG_QUALITY);
-  preview.width = canvas.width; preview.height = canvas.height;
-  const ctx = preview.getContext("2d"); ctx.drawImage(canvas,0,0);
-  preview.hidden=false; setStatus("Foto preparada.");
+btnCamOn.onclick = async()=>{
+  try{
+    if(stream) return setStatus('Cámara ya activa.');
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio:false });
+    video.srcObject = stream;
+    setStatus('Cámara activada.');
+  }catch(err){ setStatus('Error cámara: '+err.message) }
 };
 
-async function ensureCam(){
-  if(stream) return;
+btnSnap.onclick = ()=>{
+  if(!video.videoWidth){ setStatus('Activa la cámara primero.'); return; }
+  const {canvas, blob} = grabFrameToBlob(video, MAX_W, MAX_H, JPEG_QUALITY);
+  lastPhotoBlob = blob;
+  // mostrar preview
+  photoCanvas.width = canvas.width;
+  photoCanvas.height= canvas.height;
+  const ctx = photoCanvas.getContext('2d');
+  ctx.drawImage(canvas,0,0);
+  photoCanvas.hidden = false;
+  setStatus('Foto capturada.');
+};
+
+btnFicharFoto.onclick = async()=>{
+  const nombre = cleanName();
+  if(!nombre) return;
+  // si no hay foto reciente, tomar una
+  if(!lastPhotoBlob){
+    if(!video.videoWidth){ setStatus('Activa la cámara y toma la foto.'); return; }
+    lastPhotoBlob = grabFrameToBlob(video, MAX_W, MAX_H, JPEG_QUALITY).blob;
+  }
+  disableAll(true);
+  setStatus('Enviando (foto)...');
   try{
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
-    video.srcObject = stream;
-    camNote.textContent="Cámara activa";
-  }catch(e){ camNote.textContent="Sin acceso a cámara"; setStatus("Error cámara: "+e.message); }
-}
-async function stopCam(){
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; video.srcObject=null; }
-  preview.hidden=true;
-}
+    await postFichaje({ nombre, tipo, modo:'foto', blob:lastPhotoBlob });
+    okFeedback();
+  }catch(err){
+    setStatus('Error envío: '+err.message);
+  }finally{
+    disableAll(false);
+    lastPhotoBlob = null;
+    photoCanvas.hidden = true;
+  }
+};
+
 function grabFrameToBlob(video, maxW, maxH, quality){
-  const cw=video.videoWidth, ch=video.videoHeight;
-  const s=Math.min(maxW/cw, maxH/ch, 1), w=Math.round(cw*s), h=Math.round(ch*s);
-  const c=document.createElement("canvas"); c.width=w; c.height=h;
-  c.getContext("2d").drawImage(video,0,0,w,h);
-  const dataURL=c.toDataURL("image/jpeg",quality);
-  const blob=dataURLtoBlob(dataURL);
-  return {canvas:c, blob};
+  const cw = video.videoWidth, ch = video.videoHeight;
+  const scale = Math.min(maxW/cw, maxH/ch, 1);
+  const w = Math.round(cw*scale), h = Math.round(ch*scale);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  const dataURL = c.toDataURL('image/jpeg', quality);
+  const blob = dataURLtoBlob(dataURL);
+  return { canvas:c, blob };
 }
 function dataURLtoBlob(dataURL){
-  const parts=dataURL.split(','), mime=parts[0].match(/:(.*?);/)[1];
-  const bin=atob(parts[1]); const u8=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
-  return new Blob([u8],{type:mime});
+  const parts = dataURL.split(','), mime = parts[0].match(/:(.*?);/)[1];
+  const bin = atob(parts[1]); const len = bin.length;
+  const u8 = new Uint8Array(len); for(let i=0;i<len;i++) u8[i]=bin.charCodeAt(i);
+  return new Blob([u8], {type:mime});
 }
 
-/* ===== FIRMA ===== */
-const sig=$("#sig"), ctx=sig.getContext("2d");
-let drawing=false, hasStroke=false, last={x:0,y:0}, pendingSig=null;
-function fitSig(){
-  const r=Math.max(window.devicePixelRatio||1,1);
-  sig.width = sig.clientWidth*r; sig.height=sig.clientHeight*r; ctx.setTransform(r,0,0,r,0,0);
-  ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=3; ctx.strokeStyle="#111";
+/* ====== SIGNATURE ====== */
+const sig = el('#sig');
+const ctxSig = sig.getContext('2d');
+let drawing=false, hasStroke=false, last={x:0,y:0};
+
+function fitSigCanvas(){
+  const ratio = Math.max(window.devicePixelRatio||1,1);
+  sig.width = sig.clientWidth * ratio;
+  sig.height= sig.clientHeight* ratio;
+  ctxSig.scale(ratio, ratio);
+  ctxSig.lineCap = 'round';
+  ctxSig.lineJoin = 'round';
+  ctxSig.lineWidth = 3;
+  ctxSig.strokeStyle = '#111';
 }
-fitSig(); addEventListener("resize", fitSig);
-function p(ev){ const r=sig.getBoundingClientRect(); const t=ev.touches?ev.touches[0]:ev; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
-function start(ev){ drawing=true; hasStroke=true; last=p(ev); ev.preventDefault(); }
-function move(ev){ if(!drawing) return; const m=p(ev); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(m.x,m.y); ctx.stroke(); last=m; ev.preventDefault(); }
+window.addEventListener('resize', ()=>{
+  const img = sig.toDataURL(); // preserva
+  fitSigCanvas();
+  const im = new Image(); im.onload=()=>ctxSig.drawImage(im,0,0, sig.clientWidth, sig.clientHeight); im.src=img;
+});
+fitSigCanvas();
+
+function pos(ev){
+  const rect = sig.getBoundingClientRect();
+  const x = (ev.touches? ev.touches[0].clientX : ev.clientX) - rect.left;
+  const y = (ev.touches? ev.touches[0].clientY : ev.clientY) - rect.top;
+  return {x,y};
+}
+function start(ev){ drawing=true; hasStroke=true; last=pos(ev); ev.preventDefault(); }
+function move(ev){ if(!drawing) return; const p=pos(ev); ctxSig.beginPath(); ctxSig.moveTo(last.x,last.y); ctxSig.lineTo(p.x,p.y); ctxSig.stroke(); last=p; ev.preventDefault(); }
 function end(){ drawing=false; }
-sig.addEventListener("mousedown",start); sig.addEventListener("mousemove",move); addEventListener("mouseup",end);
-sig.addEventListener("touchstart",start,{passive:false}); sig.addEventListener("touchmove",move,{passive:false}); sig.addEventListener("touchend",end);
+sig.addEventListener('mousedown', start); sig.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+sig.addEventListener('touchstart', start, {passive:false}); sig.addEventListener('touchmove', move, {passive:false}); sig.addEventListener('touchend', end);
 
-$("#clearSig").onclick=()=>{ ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false; setStatus("Firma borrada."); };
-
-$("#sendSig").onclick=async ()=>{
-  if(!pendingSig){ setStatus("Selecciona primero el trabajador y el tipo (botón Firma)."); return; }
-  if(!hasStroke){ setStatus("Firma requerida."); return; }
-  const blob = await new Promise(res=>sig.toBlob(b=>res(b),"image/jpeg",JPEG_QUALITY));
-  await send({nombre:pendingSig.nombre, tipo:pendingSig.tipo, modo:"firma", blob});
-  ok(); pendingSig=null; ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false;
+el('#btn_clear_sig').onclick = ()=>{
+  ctxSig.clearRect(0,0,sig.clientWidth, sig.clientHeight);
+  hasStroke=false; setStatus('Firma borrada.');
 };
 
-/* ===== ENVÍO ===== */
-async function send({nombre, tipo, modo, blob}){
-  setStatus(`Enviando ${modo} — ${nombre} (${tipo})...`);
-  const fd = new FormData();
-  fd.append("nombre", nombre);
-  fd.append("tipo", tipo);
-  fd.append("modo", modo);
-  if(blob) fd.append("imagen", blob, `${modo}.jpg`);
-
-  // POST con timeout + fallback GET
-  const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 9000);
+el('#btn_fichar_firma').onclick = async()=>{
+  const nombre = cleanName();
+  if(!nombre) return;
+  if(!hasStroke){ setStatus('Firma requerida.'); return; }
+  disableAll(true);
+  setStatus('Enviando (firma)...');
   try{
-    const r = await fetch(ENDPOINT, {method:"POST", body:fd, signal:ctrl.signal});
-    clearTimeout(to);
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const txt=await r.text();
-    if(!/OK|ok/.test(txt)) setStatus(txt.trim());
+    const blob = await canvasToJpegBlob(sig, JPEG_QUALITY);
+    await postFichaje({ nombre, tipo, modo:'firma', blob });
+    okFeedback();
+    ctxSig.clearRect(0,0,sig.clientWidth, sig.clientHeight);
+    hasStroke=false;
+  }catch(err){
+    setStatus('Error envío: '+err.message);
+  }finally{
+    disableAll(false);
+  }
+};
+
+function canvasToJpegBlob(cnv, quality=0.7){
+  return new Promise(res=>{
+    cnv.toBlob(b=>res(b),'image/jpeg',quality);
+  });
+}
+
+/* ====== POST FICHAJE ====== */
+/* Requiere que tu Apps Script acepte doPost(FormData) con campos:
+   nombre, tipo, modo, y archivo 'imagen' (foto o firma).
+   Como fallback, si POST falla, intenta GET sin imagen para no perder el fichaje. */
+async function postFichaje({nombre, tipo, modo, blob}){
+  // 1) POST con FormData (recomendado; evita URLs largas)
+  const fd = new FormData();
+  fd.append('nombre', nombre);
+  fd.append('tipo', tipo);
+  fd.append('modo', modo); // "foto" | "firma"
+  if(blob) fd.append('imagen', blob, `${modo}.jpg`);
+
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), 9000); // duro a < 10s
+  try{
+    const r = await fetch(ENDPOINT, { method:'POST', body:fd, signal:ctrl.signal });
+    clearTimeout(t);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const txt = await r.text();
+    if(!/OK|ok/i.test(txt)) setStatus(txt.trim());
+    return true;
   }catch(e){
+    // 2) Fallback GET mínimo (sin imagen)
+    setStatus('POST falló, usando GET sin imagen...');
     const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=${encodeURIComponent(modo)}`;
-    const r2 = await fetch(url, {method:"GET", cache:"no-store"});
-    if(!r2.ok){ const t=await r2.text(); throw new Error("GET "+r2.status+": "+t); }
+    const r2 = await fetch(url, { method:'GET', cache:'no-store' });
+    const txt2 = await r2.text();
+    if(!r2.ok) throw new Error('GET '+r2.status+': '+txt2);
+    return true;
   }
 }
-function ok(){ setStatus("Registrado."); try{ beep.currentTime=0; beep.play().catch(()=>{});}catch(_){ } }
-function setStatus(t){ statusEl.textContent=t; }
+
+function okFeedback(){
+  setStatus('Enviado correctamente.');
+  try{ beepOk.currentTime=0; beepOk.play().catch(()=>{}); }catch(_){}
+}
+
+/* ====== HELPERS ====== */
+function cleanName(){
+  const v = (nombreEl.value||'').trim();
+  if(!v){ setStatus('Escribe tu nombre.'); nombreEl.focus(); }
+  return v;
+}
+function disableAll(dis){
+  document.querySelectorAll('button, input, select').forEach(b=>b.disabled=dis);
+}
+
+/* ====== PWA-ish no-cache ====== */
+if('serviceWorker' in navigator){
+  // opcional: evita cache agresivo en tablets
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([`
+    self.addEventListener('install', e=>self.skipWaiting());
+    self.addEventListener('activate', e=>self.clients.claim());
+    self.addEventListener('fetch', e=>{
+      e.respondWith(fetch(e.request, {cache:'no-store'}).catch(()=>fetch(e.request)));
+    });
+  `], {type:'text/javascript'})));
+}
 </script>
 </body>
 </html>
