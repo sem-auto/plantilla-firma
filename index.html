@@ -3,86 +3,51 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Fichaje por Firma</title>
+<title>Fichaje — Firma</title>
 <style>
-  :root { --gap:18px; --radius:20px; --maxw:1100px; --statusH:54px; }
+  :root { --gap:10px; --r:12px; --maxw:720px; }
   *{ box-sizing:border-box; }
-  html,body{ height:100%; margin:0; }
-  body{
-    background:#f4f6f8; color:#111; font-family:system-ui, Arial, sans-serif;
-    min-height:100dvh; padding:var(--gap); display:grid; place-items:start center;
-  }
-  .wrap{ width:100%; max-width:var(--maxw); background:#fff; border-radius:var(--radius);
-         box-shadow:0 6px 30px rgba(0,0,0,.08); overflow:hidden; display:flex; flex-direction:column; }
-  header{ padding:22px 26px 10px; text-align:center; }
-  header h1{ margin:0 0 6px 0; font-size:34px; font-weight:900; }
-  header p{ margin:0; color:#555; }
-
-  main{ padding:8px 20px 12px; }
-  .grid{
-    display:grid; gap:18px;
-    grid-template-columns: 1fr 1fr;  /* izquierda ENTRADA, derecha SALIDA */
-  }
-  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } }
-
-  .btn-big{
-    width:100%; padding:26px 20px; border:0; border-radius:22px; cursor:pointer;
-    font-weight:900; font-size:24px; letter-spacing:.2px; color:#fff;
-    box-shadow:0 14px 36px rgba(0,0,0,.12); transition:transform .02s ease, filter .2s ease;
-  }
-  .btn-big:active{ transform:scale(.98); }
-  .entrada{ background:#21a345; }   /* verde */
-  .salida{  background:#d43743; }   /* rojo */
-
-  .panel-firma{ display:none; margin-top:18px; }
-  .panel-firma.active{ display:block; }
-  .card{ background:#fafbfc; border:1px solid #e7ebf0; border-radius:16px; padding:14px; }
-  .hint{ margin:0 0 10px 0; font-weight:800; font-size:16px; }
-  canvas#sig{ width:100%; height:320px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; touch-action:none; }
-  .row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+  html,body{ height:100%; margin:0; font-family:system-ui, Arial, sans-serif; color:#111; }
+  body{ background:#f5f7fa; display:grid; place-items:start center; padding:var(--gap); }
+  .wrap{ width:100%; max-width:var(--maxw); background:#fff; border-radius:var(--r); box-shadow:0 4px 18px rgba(0,0,0,.08); padding:12px; }
+  h1{ margin:0 0 6px 0; font-size:18px; font-weight:800; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:520px){ .grid{ grid-template-columns:1fr; } }
   .btn{
-    padding:14px 16px; border:0; border-radius:12px; cursor:pointer; font-weight:800; letter-spacing:.2px;
-    box-shadow:0 6px 20px rgba(17,17,17,.06);
+    width:100%; padding:12px; border:0; border-radius:10px; cursor:pointer; font-weight:800; font-size:16px;
+    box-shadow:0 4px 12px rgba(0,0,0,.06); color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .primary{ background:#111; color:#fff; }
-  .ghost{ background:#e9eef6; }
-  .danger{ background:#dc3545; color:#fff; }
-
-  .status{
-    height:var(--statusH); display:flex; align-items:center; justify-content:space-between;
-    padding:0 16px; border-top:1px solid #e7ebf0; color:#444; background:#fff;
-  }
-  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-  .small{ font-size:12px; color:#666; }
+  .entrada{ background:#1e9a3c; }
+  .salida{  background:#d33843; }
+  .card{ margin-top:10px; border:1px solid #e7ebf0; border-radius:10px; padding:10px; background:#fafbfc; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .btn-sm{ padding:10px 12px; border:0; border-radius:8px; font-weight:800; background:#111; color:#fff; }
+  .btn-ghost{ background:#e9eef6; color:#111; }
+  #sig{ width:100%; height:200px; background:#fff; border:1px dashed #cbd5e1; border-radius:8px; touch-action:none; }
+  .status{ margin-top:8px; font-size:12px; color:#444; display:flex; justify-content:space-between; }
+  .mono{ font-family:ui-monospace, Menlo, Consolas, monospace; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>Fichaje</h1>
-    <p>Pulsa tu botón. El beep suena solo si el fichaje se guarda correctamente.</p>
-  </header>
+  <h1>Fichaje</h1>
 
-  <main>
-    <div id="buttons" class="grid"></div>
+  <!-- BOTONES PEQUEÑOS: ENTRADA (verde) / SALIDA (rojo) -->
+  <div id="btns" class="grid"></div>
 
-    <section id="panelFirma" class="panel-firma">
-      <div class="card">
-        <p id="hint" class="hint">Firma para confirmar…</p>
-        <canvas id="sig"></canvas>
-        <div class="row">
-          <button id="btnClear" class="btn danger">Borrar firma</button>
-          <button id="btnEnviar" class="btn primary">Enviar</button>
-          <button id="btnCancelar" class="btn ghost">Cancelar</button>
-        </div>
-        <p class="small">Firma con el dedo o lápiz digital. Luego pulsa “Enviar”.</p>
-      </div>
-    </section>
-  </main>
+  <!-- FIRMA SIEMPRE VISIBLE Y COMPACTA -->
+  <div class="card">
+    <div id="hint" style="font-weight:700; font-size:14px;">Pulsa un botón, firma y Enviar.</div>
+    <canvas id="sig"></canvas>
+    <div class="row">
+      <button id="btnClear"  class="btn-sm btn-ghost">Borrar firma</button>
+      <button id="btnEnviar" class="btn-sm">Enviar</button>
+    </div>
+  </div>
 
   <div class="status">
-    <div id="status_text">Listo.</div>
-    <div class="mono small" id="clock"></div>
+    <div id="status">Listo.</div>
+    <div id="clock" class="mono"></div>
   </div>
 </div>
 
@@ -91,127 +56,79 @@
 </audio>
 
 <script>
-/* ====== CONFIG ====== */
+/* ===== CONFIG ===== */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
 const JPEG_QUALITY = 0.8;
+
+/* Nombres de la plantilla (ajusta aquí si hace falta) */
 const WORKERS = [
+  "Marcos Bernal Ortega",
   "Emilio Fernández Muñoz",
   "Fernando Lloris Sánchez",
   "Luis Bou García",
-  "Emilio Muñoz Usero",
+  "Emilio Muñoz Usero"
 ];
 
-/* ====== ELEMENTOS ====== */
+/* ===== UI ===== */
 const $ = s => document.querySelector(s);
-const statusEl = $('#status_text');
-const beepOk   = $('#beep_ok');
-const panel    = $('#panelFirma');
+const statusEl = $('#status');
+const clockEl  = $('#clock');
 const hintEl   = $('#hint');
-const btnEnviar  = $('#btnEnviar');
-const btnCancelar= $('#btnCancelar');
-const btnClear   = $('#btnClear');
-const gridEl   = $('#buttons');
+const beepOk   = $('#beep_ok');
+const grid     = $('#btns');
 
-let tipoActual = null;
 let nombreActual = null;
-let firmando = false;
+let tipoActual   = null;
 
-/* ====== RELOJ ====== */
+/* Reloj */
 setInterval(()=>{
-  const d=new Date(); $('#clock').textContent=
-    d.toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = new Date();
+  clockEl.textContent = d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }, 250);
 
-/* ====== RENDER BOTONES ====== */
-function render(){
-  gridEl.innerHTML = '';
-  for(const nombre of WORKERS){
-    // ENTRADA
+/* Render botones pequeños */
+function renderButtons(){
+  grid.innerHTML = '';
+  for(const n of WORKERS){
     const bIn = document.createElement('button');
-    bIn.className = 'btn-big entrada';
-    bIn.textContent = `${nombre} — ENTRADA`;
-    bIn.onclick = ()=> abrirFirma(nombre,'entrada');
-    gridEl.appendChild(bIn);
+    bIn.className = 'btn entrada';
+    bIn.textContent = `${n} — ENTRADA`;
+    bIn.onclick = ()=> elegir(n,'entrada');
+    grid.appendChild(bIn);
 
-    // SALIDA
     const bOut = document.createElement('button');
-    bOut.className = 'btn-big salida';
-    bOut.textContent = `${nombre} — SALIDA`;
-    bOut.onclick = ()=> abrirFirma(nombre,'salida');
-    gridEl.appendChild(bOut);
+    bOut.className = 'btn salida';
+    bOut.textContent = `${n} — SALIDA`;
+    bOut.onclick = ()=> elegir(n,'salida');
+    grid.appendChild(bOut);
   }
 }
-render();
+renderButtons();
 
-/* ====== STATUS ====== */
-function setStatus(t){ statusEl.textContent = t }
-
-/* ====== FLUJO ====== */
-function abrirFirma(nombre, tipo){
+function elegir(nombre,tipo){
   nombreActual = nombre;
   tipoActual   = tipo;
-  hintEl.textContent = `Firma para confirmar la ${tipo.toUpperCase()} de “${nombre}” y pulsa Enviar.`;
-  panel.classList.add('active');
-  firmando = true;
-  setStatus(`Firmando: ${nombre} (${tipo})…`);
+  hintEl.textContent = `Firma: ${nombre} — ${tipo.toUpperCase()}. Luego pulsa Enviar.`;
+  status('Firmando…');
   clearSig();
 }
 
-btnCancelar.onclick = ()=>{
-  panel.classList.remove('active');
-  firmando = false;
-  clearSig();
-  setStatus('Cancelado.');
-};
-
-btnClear.onclick = ()=>{
-  clearSig();
-  setStatus('Firma borrada.');
-};
-
-btnEnviar.onclick = async()=>{
-  if(!firmando) return;
-  if(!hasStroke){ setStatus('Firma requerida.'); return; }
-
-  disableAll(true);
-  setStatus('Enviando (firma)…');
-
-  try{
-    const blob = await canvasToJpegBlob(sig, JPEG_QUALITY);
-    await postFichaje({ nombre:nombreActual, tipo: tipoActual, modo: 'firma', blob });
-    okFeedback(nombreActual);
-    panel.classList.remove('active');
-    firmando = false;
-    clearSig();
-  }catch(err){
-    setStatus('Error envío: '+err.message);
-  }finally{
-    disableAll(false);
-  }
-};
-
-/* ====== CANVAS FIRMA ====== */
+/* ===== Canvas firma (compacto) ===== */
 const sig = $('#sig');
-const ctxSig = sig.getContext('2d');
+const ctx = sig.getContext('2d');
 let drawing=false, hasStroke=false, last={x:0,y:0};
 
-function fitSigCanvas(){
-  const ratio = Math.max(window.devicePixelRatio||1,1);
-  const cssW = sig.clientWidth || sig.parentElement.clientWidth;
-  const cssH = sig.clientHeight || 320;
-  sig.width = Math.round(cssW * ratio);
-  sig.height= Math.round(cssH * ratio);
-  ctxSig.setTransform(1,0,0,1,0,0);
-  ctxSig.scale(ratio, ratio);
-  ctxSig.lineCap = 'round';
-  ctxSig.lineJoin = 'round';
-  ctxSig.lineWidth = 3;
-  ctxSig.strokeStyle = '#111';
+function fit(){
+  const r = Math.max(window.devicePixelRatio||1,1);
+  const cssW = sig.clientWidth || 300;
+  const cssH = sig.clientHeight|| 200;
+  sig.width = Math.round(cssW*r);
+  sig.height= Math.round(cssH*r);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(r,r);
+  ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=2.5; ctx.strokeStyle='#111';
 }
-function clearSig(){
-  ctxSig.clearRect(0,0,sig.width, sig.height);
-  hasStroke=false;
-}
+function clearSig(){ ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false; }
 function pos(ev){
   const rect = sig.getBoundingClientRect();
   const x = (ev.touches? ev.touches[0].clientX : ev.clientX) - rect.left;
@@ -219,72 +136,71 @@ function pos(ev){
   return {x,y};
 }
 function start(ev){ drawing=true; hasStroke=true; last=pos(ev); ev.preventDefault(); }
-function move(ev){ if(!drawing) return; const p=pos(ev); ctxSig.beginPath(); ctxSig.moveTo(last.x,last.y); ctxSig.lineTo(p.x,p.y); ctxSig.stroke(); last=p; ev.preventDefault(); }
+function move(ev){ if(!drawing) return; const p=pos(ev); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; ev.preventDefault(); }
 function end(){ drawing=false; }
-
-sig.addEventListener('mousedown', start);
-sig.addEventListener('mousemove', move);
-window.addEventListener('mouseup', end);
-sig.addEventListener('touchstart', start, {passive:false});
-sig.addEventListener('touchmove', move, {passive:false});
-sig.addEventListener('touchend', end, {passive:false});
-
+fit();
 window.addEventListener('resize', ()=>{
-  const img = sig.toDataURL('image/png'); // preservar trazos
-  fitSigCanvas();
-  const im = new Image(); im.onload=()=>ctxSig.drawImage(im,0,0, sig.clientWidth, sig.clientHeight); im.src=img;
+  const img = sig.toDataURL('image/png');
+  fit();
+  const im = new Image(); im.onload=()=>ctx.drawImage(im,0,0,sig.clientWidth,sig.clientHeight); im.src=img;
 });
-fitSigCanvas();
+sig.addEventListener('mousedown', start); sig.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+sig.addEventListener('touchstart', start, {passive:false}); sig.addEventListener('touchmove', move, {passive:false}); sig.addEventListener('touchend', end, {passive:false});
 
-/* ====== UTIL ====== */
-function canvasToJpegBlob(cnv, quality=0.8){
-  return new Promise(res=> cnv.toBlob(b=>res(b),'image/jpeg',quality));
-}
-function disableAll(dis){ document.querySelectorAll('button').forEach(b=>b.disabled=dis); }
-function okFeedback(nombre){
+/* ===== Enviar ===== */
+$('#btnClear').onclick = ()=>{ clearSig(); status('Firma borrada.'); };
+
+$('#btnEnviar').onclick = async()=>{
+  if(!nombreActual || !tipoActual){ status('Pulsa un botón primero.'); return; }
+  if(!hasStroke){ status('Firma requerida.'); return; }
+
+  disable(true);
+  status('Enviando…');
+  try{
+    const blob = await new Promise(res=> sig.toBlob(b=>res(b),'image/jpeg',JPEG_QUALITY));
+    await postFichaje({nombre:nombreActual, tipo:tipoActual, blob});
+    ok(nombreActual);
+    clearSig();
+  }catch(e){
+    status('Error: '+e.message);
+  }finally{
+    disable(false);
+  }
+};
+
+function disable(dis){ document.querySelectorAll('button').forEach(b=>b.disabled=dis); }
+function status(t){ statusEl.textContent=t; }
+function ok(nombre){
   try{ beepOk.currentTime=0; beepOk.play().catch(()=>{}); }catch(_){}
-  const hhmmss = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  setStatus(`OK: ${nombre} — enviado ${hhmmss}.`);
+  const h = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  status(`OK: ${nombre} — enviado ${h}.`);
 }
 
-/* ====== POST FICHAJE ====== */
-/* GAS debe aceptar: nombre, tipo, modo='firma', imagen (JPEG). Guardar firma en columna 'firma'. */
-async function postFichaje({nombre, tipo, modo, blob}){
+/* POST (firma) + fallback GET sin imagen */
+async function postFichaje({nombre,tipo,blob}){
   const fd = new FormData();
   fd.append('nombre', nombre);
   fd.append('tipo', tipo);
-  fd.append('modo', modo);
-  if(blob) fd.append('imagen', blob, 'firma.jpg');
+  fd.append('modo', 'firma');
+  fd.append('imagen', blob, 'firma.jpg');
 
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), 9000);
   try{
-    const r = await fetch(ENDPOINT, { method:'POST', body:fd, signal:ctrl.signal });
+    const r = await fetch(ENDPOINT,{method:'POST',body:fd,signal:ctrl.signal});
     clearTimeout(t);
     const txt = await r.text();
     if(!r.ok) throw new Error('HTTP '+r.status+' '+txt);
-    if(!/OK/i.test(txt)) setStatus(txt.trim());
+    if(!/OK/i.test(txt)) status(txt.trim());
     return true;
   }catch(e){
-    // Fallback GET (sin imagen) para no perder fichaje
-    setStatus('POST falló, usando GET sin imagen…');
-    const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=${encodeURIComponent(modo)}`;
-    const r2 = await fetch(url, { method:'GET', cache:'no-store' });
+    status('POST falló, usando GET sin imagen…');
+    const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=firma`;
+    const r2 = await fetch(url,{method:'GET',cache:'no-store'});
     const txt2 = await r2.text();
     if(!r2.ok) throw new Error('GET '+r2.status+': '+txt2);
     return true;
   }
-}
-
-/* ====== No-cache suave (opcional) ====== */
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register(URL.createObjectURL(new Blob([`
-    self.addEventListener('install', e=>self.skipWaiting());
-    self.addEventListener('activate', e=>self.clients.claim());
-    self.addEventListener('fetch', e=>{
-      e.respondWith(fetch(e.request, {cache:'no-store'}).catch(()=>fetch(e.request)));
-    });
-  `], {type:'text/javascript'})));
 }
 </script>
 </body>
