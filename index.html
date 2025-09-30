@@ -94,17 +94,13 @@ function paintWhite(){
 function fit(){
   const r=Math.max(devicePixelRatio||1,1);
   const w=sig.clientWidth||600,h=sig.clientHeight||160;
-  // Guardar contenido si existe
-  const backup=ctx.getImageData(0,0,sig.width||1,sig.height||1);
   sig.width=Math.round(w*r); sig.height=Math.round(h*r);
   ctx.setTransform(r,0,0,r,0,0);
   paintWhite();
-  // Restaurar si había algo (evitar fondo negro)
-  if(backup.width>0&&backup.height>0){ ctx.putImageData(backup,0,0); }
   ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=3.2; ctx.strokeStyle="#000";
 }
 fit();
-addEventListener("resize",()=>{ const tmp=new Image(); tmp.src=sig.toDataURL("image/png"); tmp.onload=()=>{ fit(); ctx.drawImage(tmp,0,0,sig.clientWidth,sig.clientHeight); }; });
+addEventListener("resize",()=>{ const img=sig.toDataURL("image/png"); fit(); const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,sig.clientWidth,sig.clientHeight); im.src=img; });
 
 function pos(e){const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y};}
 function start(e){drawing=true; last=pos(e); e.preventDefault();}
@@ -116,7 +112,7 @@ sig.addEventListener("touchstart",start,{passive:false}); sig.addEventListener("
 function clearSig(){ paintWhite(); hasStroke=false; }
 $("#btnClear").onclick=()=>{ clearSig(); setStatus("Firma borrada."); };
 
-/* ===== envío (dataURL PNG) ===== */
+/* ===== envío (PNG con fondo blanco forzado antes de capturar) ===== */
 $("#btnEnviar").onclick=send;
 
 function setStatus(t){ statusEl.textContent=t; }
@@ -130,7 +126,14 @@ async function send(){
 
   sending=true; disable(true); setStatus("Enviando…");
   try{
-    const dataURL = sig.toDataURL("image/png");        // PNG con fondo blanco
+    // fondo blanco bajo el trazo antes de exportar
+    ctx.save();
+    ctx.globalCompositeOperation="destination-over";
+    ctx.fillStyle="#fff";
+    ctx.fillRect(0,0,sig.width,sig.height);
+    ctx.restore();
+
+    const dataURL = sig.toDataURL("image/png");
     const txId = "tx_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
 
     const fd=new FormData();
