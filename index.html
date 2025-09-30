@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>Fichaje por Firma</title>
 <style>
-  :root { --gap:16px; --radius:16px; --maxw:820px; --statusH:52px; }
+  :root { --gap:18px; --radius:20px; --maxw:1100px; --statusH:54px; }
   *{ box-sizing:border-box; }
   html,body{ height:100%; margin:0; }
   body{
@@ -14,28 +14,31 @@
   }
   .wrap{ width:100%; max-width:var(--maxw); background:#fff; border-radius:var(--radius);
          box-shadow:0 6px 30px rgba(0,0,0,.08); overflow:hidden; display:flex; flex-direction:column; }
-  header{ padding:18px 20px; border-bottom:1px solid #e7ebf0; display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
-  header h1{ font-size:18px; margin:0; font-weight:800; }
-  .field{ flex:1; min-width:240px; }
-  label{ display:block; font-size:13px; color:#555; margin-bottom:6px; }
-  input[type="text"]{
-    width:100%; padding:14px 16px; border:1px solid #d7dde5; border-radius:12px; font-size:18px;
+  header{ padding:22px 26px 10px; text-align:center; }
+  header h1{ margin:0 0 6px 0; font-size:34px; font-weight:900; }
+  header p{ margin:0; color:#555; }
+
+  main{ padding:8px 20px 12px; }
+  .grid{
+    display:grid; gap:18px;
+    grid-template-columns: 1fr 1fr;  /* izquierda ENTRADA, derecha SALIDA */
   }
-  .actions-top{ display:flex; gap:12px; flex: 0 0 auto; }
+  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } }
+
   .btn-big{
-    flex:1 1 240px; padding:18px 20px; font-weight:900; font-size:20px; letter-spacing:.2px;
-    border:0; border-radius:16px; cursor:pointer; box-shadow:0 10px 26px rgba(15,98,254,.18);
-    transition: transform .02s ease, filter .2s ease;
+    width:100%; padding:26px 20px; border:0; border-radius:22px; cursor:pointer;
+    font-weight:900; font-size:24px; letter-spacing:.2px; color:#fff;
+    box-shadow:0 14px 36px rgba(0,0,0,.12); transition:transform .02s ease, filter .2s ease;
   }
   .btn-big:active{ transform:scale(.98); }
-  .entrada{ background:#0f62fe; color:#fff; }
-  .salida{ background:#ef4444; color:#fff; box-shadow:0 10px 26px rgba(239,68,68,.22); }
-  main{ padding:16px 20px 8px; }
-  .panel-firma{ display:none; }
+  .entrada{ background:#21a345; }   /* verde */
+  .salida{  background:#d43743; }   /* rojo */
+
+  .panel-firma{ display:none; margin-top:18px; }
   .panel-firma.active{ display:block; }
-  .card{ background:#fafbfc; border:1px solid #e7ebf0; border-radius:14px; padding:14px; }
-  .hint{ margin:0 0 10px 0; font-weight:700; }
-  canvas#sig{ width:100%; height:300px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; touch-action:none; }
+  .card{ background:#fafbfc; border:1px solid #e7ebf0; border-radius:16px; padding:14px; }
+  .hint{ margin:0 0 10px 0; font-weight:800; font-size:16px; }
+  canvas#sig{ width:100%; height:320px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff; touch-action:none; }
   .row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
   .btn{
     padding:14px 16px; border:0; border-radius:12px; cursor:pointer; font-weight:800; letter-spacing:.2px;
@@ -44,9 +47,10 @@
   .primary{ background:#111; color:#fff; }
   .ghost{ background:#e9eef6; }
   .danger{ background:#dc3545; color:#fff; }
+
   .status{
     height:var(--statusH); display:flex; align-items:center; justify-content:space-between;
-    padding:0 14px; border-top:1px solid #e7ebf0; color:#444; background:#fff;
+    padding:0 16px; border-top:1px solid #e7ebf0; color:#444; background:#fff;
   }
   .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   .small{ font-size:12px; color:#666; }
@@ -56,23 +60,12 @@
 <div class="wrap">
   <header>
     <h1>Fichaje</h1>
-    <div class="field" style="flex:2;">
-      <label>Nombre</label>
-      <input id="nombre" type="text" list="empleados" placeholder="Escribe tu nombre..." autocomplete="name" />
-      <datalist id="empleados">
-        <option value="Emilio Fernández Muñoz"></option>
-        <option value="Fernando Lloris Sánchez"></option>
-        <option value="Luis Bou García"></option>
-        <option value="Emilio Muñoz Usero"></option>
-      </datalist>
-    </div>
-    <div class="actions-top">
-      <button id="btnEntrada" class="btn-big entrada">Fichar ENTRADA</button>
-      <button id="btnSalida"  class="btn-big salida">Fichar SALIDA</button>
-    </div>
+    <p>Pulsa tu botón. El beep suena solo si el fichaje se guarda correctamente.</p>
   </header>
 
   <main>
+    <div id="buttons" class="grid"></div>
+
     <section id="panelFirma" class="panel-firma">
       <div class="card">
         <p id="hint" class="hint">Firma para confirmar…</p>
@@ -94,29 +87,33 @@
 </div>
 
 <audio id="beep_ok" preload="auto">
-  <!-- beep mínimo -->
   <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav" />
 </audio>
 
 <script>
 /* ====== CONFIG ====== */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
-const JPEG_QUALITY = 0.75;
+const JPEG_QUALITY = 0.8;
+const WORKERS = [
+  "Emilio Fernández Muñoz",
+  "Fernando Lloris Sánchez",
+  "Luis Bou García",
+  "Emilio Muñoz Usero",
+];
 
 /* ====== ELEMENTOS ====== */
 const $ = s => document.querySelector(s);
 const statusEl = $('#status_text');
 const beepOk   = $('#beep_ok');
-const nombreEl = $('#nombre');
 const panel    = $('#panelFirma');
 const hintEl   = $('#hint');
-const btnEntrada = $('#btnEntrada');
-const btnSalida  = $('#btnSalida');
 const btnEnviar  = $('#btnEnviar');
 const btnCancelar= $('#btnCancelar');
 const btnClear   = $('#btnClear');
+const gridEl   = $('#buttons');
 
 let tipoActual = null;
+let nombreActual = null;
 let firmando = false;
 
 /* ====== RELOJ ====== */
@@ -125,21 +122,39 @@ setInterval(()=>{
     d.toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }, 250);
 
+/* ====== RENDER BOTONES ====== */
+function render(){
+  gridEl.innerHTML = '';
+  for(const nombre of WORKERS){
+    // ENTRADA
+    const bIn = document.createElement('button');
+    bIn.className = 'btn-big entrada';
+    bIn.textContent = `${nombre} — ENTRADA`;
+    bIn.onclick = ()=> abrirFirma(nombre,'entrada');
+    gridEl.appendChild(bIn);
+
+    // SALIDA
+    const bOut = document.createElement('button');
+    bOut.className = 'btn-big salida';
+    bOut.textContent = `${nombre} — SALIDA`;
+    bOut.onclick = ()=> abrirFirma(nombre,'salida');
+    gridEl.appendChild(bOut);
+  }
+}
+render();
+
 /* ====== STATUS ====== */
 function setStatus(t){ statusEl.textContent = t }
 
 /* ====== FLUJO ====== */
-btnEntrada.onclick = ()=> abrirFirma('entrada');
-btnSalida.onclick  = ()=> abrirFirma('salida');
-
-function abrirFirma(tipo){
-  const nombre = cleanName();
-  if(!nombre) return;
-  tipoActual = tipo;
+function abrirFirma(nombre, tipo){
+  nombreActual = nombre;
+  tipoActual   = tipo;
   hintEl.textContent = `Firma para confirmar la ${tipo.toUpperCase()} de “${nombre}” y pulsa Enviar.`;
   panel.classList.add('active');
   firmando = true;
-  setStatus(`Firmando (${tipo})…`);
+  setStatus(`Firmando: ${nombre} (${tipo})…`);
+  clearSig();
 }
 
 btnCancelar.onclick = ()=>{
@@ -156,8 +171,6 @@ btnClear.onclick = ()=>{
 
 btnEnviar.onclick = async()=>{
   if(!firmando) return;
-  const nombre = cleanName();
-  if(!nombre) return;
   if(!hasStroke){ setStatus('Firma requerida.'); return; }
 
   disableAll(true);
@@ -165,8 +178,8 @@ btnEnviar.onclick = async()=>{
 
   try{
     const blob = await canvasToJpegBlob(sig, JPEG_QUALITY);
-    await postFichaje({ nombre, tipo: tipoActual, modo: 'firma', blob });
-    okFeedback(nombre);
+    await postFichaje({ nombre:nombreActual, tipo: tipoActual, modo: 'firma', blob });
+    okFeedback(nombreActual);
     panel.classList.remove('active');
     firmando = false;
     clearSig();
@@ -185,7 +198,7 @@ let drawing=false, hasStroke=false, last={x:0,y:0};
 function fitSigCanvas(){
   const ratio = Math.max(window.devicePixelRatio||1,1);
   const cssW = sig.clientWidth || sig.parentElement.clientWidth;
-  const cssH = sig.clientHeight || 300;
+  const cssH = sig.clientHeight || 320;
   sig.width = Math.round(cssW * ratio);
   sig.height= Math.round(cssH * ratio);
   ctxSig.setTransform(1,0,0,1,0,0);
@@ -217,31 +230,25 @@ sig.addEventListener('touchmove', move, {passive:false});
 sig.addEventListener('touchend', end, {passive:false});
 
 window.addEventListener('resize', ()=>{
-  // preservar trazos al redimensionar
-  const img = sig.toDataURL('image/png');
+  const img = sig.toDataURL('image/png'); // preservar trazos
   fitSigCanvas();
   const im = new Image(); im.onload=()=>ctxSig.drawImage(im,0,0, sig.clientWidth, sig.clientHeight); im.src=img;
 });
 fitSigCanvas();
 
 /* ====== UTIL ====== */
-function canvasToJpegBlob(cnv, quality=0.75){
+function canvasToJpegBlob(cnv, quality=0.8){
   return new Promise(res=> cnv.toBlob(b=>res(b),'image/jpeg',quality));
 }
-function disableAll(dis){ document.querySelectorAll('button, input').forEach(b=>b.disabled=dis); }
+function disableAll(dis){ document.querySelectorAll('button').forEach(b=>b.disabled=dis); }
 function okFeedback(nombre){
   try{ beepOk.currentTime=0; beepOk.play().catch(()=>{}); }catch(_){}
   const hhmmss = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   setStatus(`OK: ${nombre} — enviado ${hhmmss}.`);
 }
-function cleanName(){
-  const v = (nombreEl.value||'').trim();
-  if(!v){ setStatus('Escribe tu nombre.'); nombreEl.focus(); }
-  return v;
-}
 
 /* ====== POST FICHAJE ====== */
-/* Espera en GAS: nombre, tipo, modo='firma', imagen (JPEG). */
+/* GAS debe aceptar: nombre, tipo, modo='firma', imagen (JPEG). Guardar firma en columna 'firma'. */
 async function postFichaje({nombre, tipo, modo, blob}){
   const fd = new FormData();
   fd.append('nombre', nombre);
@@ -256,11 +263,10 @@ async function postFichaje({nombre, tipo, modo, blob}){
     clearTimeout(t);
     const txt = await r.text();
     if(!r.ok) throw new Error('HTTP '+r.status+' '+txt);
-    // opcional: mostrar respuesta del servidor si no contiene "OK"
     if(!/OK/i.test(txt)) setStatus(txt.trim());
     return true;
   }catch(e){
-    // Fallback GET mínimo para no perder el fichaje (sin imagen)
+    // Fallback GET (sin imagen) para no perder fichaje
     setStatus('POST falló, usando GET sin imagen…');
     const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=${encodeURIComponent(modo)}`;
     const r2 = await fetch(url, { method:'GET', cache:'no-store' });
