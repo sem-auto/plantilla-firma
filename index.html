@@ -35,7 +35,7 @@
   <!-- BOTONES PEQUEÑOS: ENTRADA (verde) / SALIDA (rojo) -->
   <div id="btns" class="grid"></div>
 
-  <!-- FIRMA SIEMPRE VISIBLE Y COMPACTA -->
+  <!-- FIRMA COMPACTA -->
   <div class="card">
     <div id="hint" style="font-weight:700; font-size:14px;">Pulsa un botón, firma y Enviar.</div>
     <canvas id="sig"></canvas>
@@ -60,13 +60,12 @@
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
 const JPEG_QUALITY = 0.8;
 
-/* Nombres de la plantilla (ajusta aquí si hace falta) */
+/* Nombres inventados */
 const WORKERS = [
   "Marcos Bernal Ortega",
-  "Emilio Fernández Muñoz",
-  "Fernando Lloris Sánchez",
-  "Luis Bou García",
-  "Emilio Muñoz Usero"
+  "Laura Sánchez Vidal",
+  "Javier Torres Molina",
+  "Paula Gómez Ruiz"
 ];
 
 /* ===== UI ===== */
@@ -113,7 +112,7 @@ function elegir(nombre,tipo){
   clearSig();
 }
 
-/* ===== Canvas firma (compacto) ===== */
+/* ===== Canvas firma ===== */
 const sig = $('#sig');
 const ctx = sig.getContext('2d');
 let drawing=false, hasStroke=false, last={x:0,y:0};
