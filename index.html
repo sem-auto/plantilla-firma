@@ -32,10 +32,8 @@
 <div class="wrap">
   <h1>Fichaje</h1>
 
-  <!-- BOTONES PEQUEÑOS: ENTRADA (verde) / SALIDA (rojo) -->
   <div id="btns" class="grid"></div>
 
-  <!-- FIRMA COMPACTA -->
   <div class="card">
     <div id="hint" style="font-weight:700; font-size:14px;">Pulsa un botón, firma y Enviar.</div>
     <canvas id="sig"></canvas>
@@ -51,16 +49,11 @@
   </div>
 </div>
 
-<audio id="beep_ok" preload="auto">
-  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav" />
-</audio>
-
 <script>
 /* ===== CONFIG ===== */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
 const JPEG_QUALITY = 0.8;
-
-/* Nombres inventados */
+const ENABLE_FALLBACK_GET = false; // ← evita duplicados
 const WORKERS = [
   "Marcos Bernal Ortega",
   "Laura Sánchez Vidal",
@@ -73,11 +66,11 @@ const $ = s => document.querySelector(s);
 const statusEl = $('#status');
 const clockEl  = $('#clock');
 const hintEl   = $('#hint');
-const beepOk   = $('#beep_ok');
 const grid     = $('#btns');
 
 let nombreActual = null;
 let tipoActual   = null;
+let sending = false;
 
 /* Reloj */
 setInterval(()=>{
@@ -85,7 +78,7 @@ setInterval(()=>{
   clockEl.textContent = d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }, 250);
 
-/* Render botones pequeños */
+/* Render botones */
 function renderButtons(){
   grid.innerHTML = '';
   for(const n of WORKERS){
@@ -105,6 +98,7 @@ function renderButtons(){
 renderButtons();
 
 function elegir(nombre,tipo){
+  if (sending) return;
   nombreActual = nombre;
   tipoActual   = tipo;
   hintEl.textContent = `Firma: ${nombre} — ${tipo.toUpperCase()}. Luego pulsa Enviar.`;
@@ -112,7 +106,7 @@ function elegir(nombre,tipo){
   clearSig();
 }
 
-/* ===== Canvas firma ===== */
+/* ===== Firma (canvas) ===== */
 const sig = $('#sig');
 const ctx = sig.getContext('2d');
 let drawing=false, hasStroke=false, last={x:0,y:0};
@@ -150,41 +144,55 @@ sig.addEventListener('touchstart', start, {passive:false}); sig.addEventListener
 $('#btnClear').onclick = ()=>{ clearSig(); status('Firma borrada.'); };
 
 $('#btnEnviar').onclick = async()=>{
+  if (sending) return;
   if(!nombreActual || !tipoActual){ status('Pulsa un botón primero.'); return; }
   if(!hasStroke){ status('Firma requerida.'); return; }
 
+  sending = true;
   disable(true);
   status('Enviando…');
   try{
     const blob = await new Promise(res=> sig.toBlob(b=>res(b),'image/jpeg',JPEG_QUALITY));
-    await postFichaje({nombre:nombreActual, tipo:tipoActual, blob});
-    ok(nombreActual);
+    const txId = genTxId();
+    await postFichaje({nombre:nombreActual, tipo:tipoActual, blob, txId});
+    beep();
+    const h = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    status(`OK: ${nombreActual} — enviado ${h}.`);
     clearSig();
   }catch(e){
     status('Error: '+e.message);
   }finally{
+    sending = false;
     disable(false);
   }
 };
 
 function disable(dis){ document.querySelectorAll('button').forEach(b=>b.disabled=dis); }
 function status(t){ statusEl.textContent=t; }
-function ok(nombre){
-  try{ beepOk.currentTime=0; beepOk.play().catch(()=>{}); }catch(_){}
-  const h = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  status(`OK: ${nombre} — enviado ${h}.`);
+function genTxId(){ return 'tx_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
+
+/* Beep por WebAudio (fiable tras gesto del usuario) */
+function beep(){
+  try{
+    const ctxA = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctxA.createOscillator(); const g = ctxA.createGain();
+    o.connect(g); g.connect(ctxA.destination);
+    o.frequency.value = 880; g.gain.value=0.08;
+    o.start(); setTimeout(()=>{ o.stop(); ctxA.close(); }, 120);
+  }catch(_){}
 }
 
-/* POST (firma) + fallback GET sin imagen */
-async function postFichaje({nombre,tipo,blob}){
+/* ===== POST (sin fallback por defecto) ===== */
+async function postFichaje({nombre,tipo,blob,txId}){
   const fd = new FormData();
   fd.append('nombre', nombre);
   fd.append('tipo', tipo);
   fd.append('modo', 'firma');
+  fd.append('txId', txId);
   fd.append('imagen', blob, 'firma.jpg');
 
   const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), 9000);
+  const t = setTimeout(()=>ctrl.abort(), 8000);
   try{
     const r = await fetch(ENDPOINT,{method:'POST',body:fd,signal:ctrl.signal});
     clearTimeout(t);
@@ -193,8 +201,8 @@ async function postFichaje({nombre,tipo,blob}){
     if(!/OK/i.test(txt)) status(txt.trim());
     return true;
   }catch(e){
-    status('POST falló, usando GET sin imagen…');
-    const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=firma`;
+    if(!ENABLE_FALLBACK_GET) throw e;
+    const url = `${ENDPOINT}?nombre=${encodeURIComponent(nombre)}&tipo=${encodeURIComponent(tipo)}&modo=firma&txId=${encodeURIComponent(txId)}`;
     const r2 = await fetch(url,{method:'GET',cache:'no-store'});
     const txt2 = await r2.text();
     if(!r2.ok) throw new Error('GET '+r2.status+': '+txt2);
