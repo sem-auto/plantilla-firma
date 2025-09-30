@@ -14,8 +14,7 @@ h1{margin:0 0 6px 0;font-size:18px;font-weight:800}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media (max-width:520px){.grid{grid-template-columns:1fr}}
 .btn{width:100%;padding:12px;border:0;border-radius:10px;cursor:pointer;font-weight:800;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.entrada{background:#1e9a3c}
-.salida{background:#d33843}
+.entrada{background:#1e9a3c}.salida{background:#d33843}
 .card{margin-top:10px;border:1px solid #e7ebf0;border-radius:10px;padding:10px;background:#fafbfc}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .btn-sm{padding:10px 12px;border:0;border-radius:8px;font-weight:800;background:#111;color:#fff}
@@ -43,8 +42,7 @@ h1{margin:0 0 6px 0;font-size:18px;font-weight:800}
 <script>
 /* ===== CONFIG ===== */
 const ENDPOINT="https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
-const JPEG_QUALITY=0.8;
-/* Trabajadores (nombres inventados) */
+const JPEG_QUALITY=0.85;
 const WORKERS=["Marcos Bernal Ortega","Laura Sánchez Vidal","Javier Torres Molina","Paula Gómez Ruiz"];
 
 /* ===== UI ===== */
@@ -55,14 +53,14 @@ let nombreActual=null,tipoActual=null,sending=false;
 /* Reloj */
 setInterval(()=>{const d=new Date();clockEl.textContent=d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})},250);
 
-/* Render botones */
+/* Botones */
 function render(){grid.innerHTML="";for(const n of WORKERS){
   const b1=document.createElement("button");b1.className="btn entrada";b1.textContent=`${n} — ENTRADA`;b1.onclick=()=>elegir(n,"entrada");grid.appendChild(b1);
   const b2=document.createElement("button");b2.className="btn salida";b2.textContent=`${n} — SALIDA`;b2.onclick=()=>elegir(n,"salida");grid.appendChild(b2);
 }}render();
 
-function elegir(n,t){if(sending)return;nombreActual=n;tipoActual=t;hintEl.textContent=`Firma: ${n} — ${t.toUpperCase()}. Luego pulsa Enviar.`;status("Firmando…");clearSig();}
-function status(t){statusEl.textContent=t}
+function elegir(n,t){ if(sending) return; nombreActual=n; tipoActual=t; hintEl.textContent=`Firma: ${n} — ${t.toUpperCase()}. Luego pulsa Enviar.`; status("Firmando…"); clearSig(); }
+function status(t){ statusEl.textContent=t; }
 
 /* ===== Canvas firma ===== */
 const sig=$("#sig"),ctx=sig.getContext("2d");let drawing=false,hasStroke=false,last={x:0,y:0};
@@ -72,28 +70,57 @@ function fit(){const r=Math.max(window.devicePixelRatio||1,1);const w=sig.client
 fit();
 function clearSig(){ctx.clearRect(0,0,sig.width,sig.height);hasStroke=false}
 function pos(e){const r=sig.getBoundingClientRect();const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;return{x,y}}
-function start(e){drawing=true;hasStroke=true;last=pos(e);e.preventDefault()}function move(e){if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;e.preventDefault()}function end(){drawing=false}
+function start(e){drawing=true;hasStroke=true;last=pos(e);e.preventDefault()}
+function move(e){if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault();}
+function end(){drawing=false}
 window.addEventListener("resize",()=>{const img=sig.toDataURL("image/png");fit();const im=new Image();im.onload=()=>ctx.drawImage(im,0,0,sig.clientWidth,sig.clientHeight);im.src=img});
 sig.addEventListener("mousedown",start);sig.addEventListener("mousemove",move);window.addEventListener("mouseup",end);
 sig.addEventListener("touchstart",start,{passive:false});sig.addEventListener("touchmove",move,{passive:false});sig.addEventListener("touchend",end,{passive:false});
 
 /* ===== Enviar ===== */
-$("#btnClear").onclick=()=>{clearSig();status("Firma borrada.")};
+$("#btnClear").onclick=()=>{ clearSig(); status("Firma borrada."); };
+
 $("#btnEnviar").onclick=async()=>{
-  if(sending)return;if(!nombreActual||!tipoActual){status("Pulsa un botón primero.");return}
-  if(!hasStroke){status("Firma requerida.");return}
-  sending=true;disable(true);status("Enviando…");
+  if(sending) return;
+  if(!nombreActual||!tipoActual){ status("Pulsa un botón primero."); return; }
+  if(!hasStroke){ status("Firma requerida."); return; }
+
+  sending=true; disable(true); status("Enviando…");
   try{
-    const blob=await new Promise(res=>sig.toBlob(b=>res(b),"image/jpeg",JPEG_QUALITY));
-    const txId="tx_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
-    const fd=new FormData();fd.append("nombre",nombreActual);fd.append("tipo",tipoActual);fd.append("modo","firma");fd.append("txId",txId);fd.append("imagen",blob,"firma.jpg");
-    await fetch(ENDPOINT,{method:"POST",body:fd,mode:"no-cors"});
-    beep();const h=new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-    status(`OK: ${nombreActual} — enviado ${h}.`);clearSig();
-  }catch(e){status("Error de red.")}finally{sending=false;disable(false)}};
-function disable(d){document.querySelectorAll("button").forEach(b=>b.disabled=d)}
-function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>{o.stop();a.close()},130)}catch(_){}} 
+    const blob = await new Promise(res=> sig.toBlob(b=>res(b),"image/jpeg",JPEG_QUALITY));
+    const txId = "tx_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
+
+    const fd = new FormData();
+    fd.append("nombre", nombreActual);
+    fd.append("tipo", tipoActual);
+    fd.append("modo", "firma");
+    fd.append("txId", txId);
+    fd.append("imagen", blob, "firma.jpg");
+
+    const r = await fetch(ENDPOINT, { method:"POST", body:fd }); // Apps Script acepta CORS
+    // No dependemos del body; con que no falle la red es suficiente
+    beep();
+    const h=new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    status(`OK: ${nombreActual} — enviado ${h}.`);
+    clearSig();
+  }catch(e){
+    status("Error de red.");
+  }finally{
+    sending=false; disable(false);
+  }
+};
+
+function disable(d){ document.querySelectorAll("button").forEach(b=>b.disabled=d); }
+
+/* Beep fiable (gesto del usuario previo) */
+function beep(){
+  try{
+    const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.frequency.value=880; g.gain.value=.08;
+    o.start(); setTimeout(()=>{ o.stop(); a.close(); }, 130);
+  }catch(_){}
+}
 </script>
 </body>
 </html>
-
