@@ -1,126 +1,116 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>Fichaje — Firma</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Fichaje con Firma</title>
 <style>
-:root{--gap:10px;--r:12px;--maxw:720px}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:system-ui,Arial,sans-serif;color:#111}
-body{background:#f5f7fa;display:grid;place-items:start center;padding:var(--gap)}
-.wrap{width:100%;max-width:var(--maxw);background:#fff;border-radius:var(--r);box-shadow:0 4px 18px rgba(0,0,0,.08);padding:12px}
-h1{margin:0 0 6px 0;font-size:18px;font-weight:800}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media (max-width:520px){.grid{grid-template-columns:1fr}}
-.btn{width:100%;padding:12px;border:0;border-radius:10px;cursor:pointer;font-weight:800;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.entrada{background:#1e9a3c}.salida{background:#d33843}
-.card{margin-top:10px;border:1px solid #e7ebf0;border-radius:10px;padding:10px;background:#fafbfc}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.btn-sm{padding:10px 12px;border:0;border-radius:8px;font-weight:800;background:#111;color:#fff}
-.btn-ghost{background:#e9eef6;color:#111}
-#sig{width:100%;height:200px;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;touch-action:none}
-.status{margin-top:8px;font-size:12px;color:#444;display:flex;justify-content:space-between}
-.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  body{
+    background:#f4f6f8; color:#111; font-family:system-ui, Arial, sans-serif;
+    min-height:100vh; margin:0; padding:20px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  }
+  h1{ font-size:20px; margin-bottom:8px; }
+  p.small{ color:#555; font-size:13px; margin-top:0; margin-bottom:16px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:600px; margin-bottom:20px; }
+  .btn{
+    padding:16px; font-size:14px; font-weight:700;
+    border:0; border-radius:10px; cursor:pointer; color:#fff;
+  }
+  .entrada{ background:#22c55e; }
+  .salida{ background:#dc2626; }
+  canvas{ border:2px dashed #999; border-radius:10px; background:#fff; touch-action:none; width:100%; height:180px; }
+  .actions{ margin-top:10px; display:flex; gap:10px; }
+  .actions button{
+    flex:1; padding:12px; border:0; border-radius:8px; font-weight:700; cursor:pointer;
+  }
+  .clear{ background:#e5e7eb; }
+  .send{ background:#0f62fe; color:#fff; }
+  #status{ margin-top:14px; font-size:14px; color:#333; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Fichaje</h1>
-  <div id="btns" class="grid"></div>
-  <div class="card">
-    <div id="hint" style="font-weight:700;font-size:14px;">Pulsa un botón, firma y Enviar.</div>
-    <canvas id="sig"></canvas>
-    <div class="row">
-      <button id="btnClear"  class="btn-sm btn-ghost">Borrar firma</button>
-      <button id="btnEnviar" class="btn-sm">Enviar</button>
-    </div>
+  <h1>Fichaje Empresa</h1>
+  <p class="small">Pulsa tu botón, firma y envía.</p>
+
+  <div class="grid">
+    <button class="btn entrada" onclick="pick('Marcos Bernal Ortega','entrada')">Marcos Bernal Ortega — ENTRADA</button>
+    <button class="btn salida"  onclick="pick('Marcos Bernal Ortega','salida')">Marcos Bernal Ortega — SALIDA</button>
+    <button class="btn entrada" onclick="pick('Carla Gomez Torres','entrada')">Carla Gomez Torres — ENTRADA</button>
+    <button class="btn salida"  onclick="pick('Carla Gomez Torres','salida')">Carla Gomez Torres — SALIDA</button>
   </div>
-  <div class="status"><div id="status">Listo.</div><div id="clock" class="mono"></div></div>
-</div>
+
+  <canvas id="sig"></canvas>
+  <div class="actions">
+    <button class="clear" onclick="clearSig()">Borrar</button>
+    <button class="send" id="btnEnviar">Enviar</button>
+  </div>
+
+  <div id="status">Listo.</div>
+
+  <audio id="beep_ok" preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav" />
+  </audio>
 
 <script>
-/* ===== CONFIG ===== */
-const ENDPOINT="https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
-const JPEG_QUALITY=0.85;
-const WORKERS=["Marcos Bernal Ortega","Laura Sánchez Vidal","Javier Torres Molina","Paula Gómez Ruiz"];
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
+const JPEG_QUALITY = 0.8;
 
-/* ===== UI ===== */
-const $=s=>document.querySelector(s);
-const statusEl=$("#status"),clockEl=$("#clock"),hintEl=$("#hint"),grid=$("#btns");
-let nombreActual=null,tipoActual=null,sending=false;
+let nombreActual="", tipoActual="";
+function pick(n,t){ nombreActual=n; tipoActual=t; status(`Seleccionado: ${n} → ${t}`); }
 
-/* Reloj */
-setInterval(()=>{const d=new Date();clockEl.textContent=d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})},250);
+const sig = document.getElementById("sig");
+const ctx = sig.getContext("2d");
+let drawing=false, hasStroke=false, last={x:0,y:0};
 
-/* Botones */
-function render(){grid.innerHTML="";for(const n of WORKERS){
-  const b1=document.createElement("button");b1.className="btn entrada";b1.textContent=`${n} — ENTRADA`;b1.onclick=()=>elegir(n,"entrada");grid.appendChild(b1);
-  const b2=document.createElement("button");b2.className="btn salida";b2.textContent=`${n} — SALIDA`;b2.onclick=()=>elegir(n,"salida");grid.appendChild(b2);
-}}render();
+function resizeCanvas(){
+  const ratio = window.devicePixelRatio||1;
+  sig.width = sig.clientWidth*ratio;
+  sig.height= sig.clientHeight*ratio;
+  ctx.scale(ratio,ratio);
+  ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=2; ctx.strokeStyle="#000";
+}
+resizeCanvas(); window.onresize=resizeCanvas;
 
-function elegir(n,t){ if(sending) return; nombreActual=n; tipoActual=t; hintEl.textContent=`Firma: ${n} — ${t.toUpperCase()}. Luego pulsa Enviar.`; status("Firmando…"); clearSig(); }
-function status(t){ statusEl.textContent=t; }
+function pos(ev){
+  const r=sig.getBoundingClientRect();
+  return { x:(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left,
+           y:(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top };
+}
+sig.addEventListener("mousedown",e=>{drawing=true; last=pos(e);});
+sig.addEventListener("mousemove",e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;hasStroke=true;});
+window.addEventListener("mouseup",()=>drawing=false);
+sig.addEventListener("touchstart",e=>{drawing=true; last=pos(e); e.preventDefault();});
+sig.addEventListener("touchmove",e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;hasStroke=true; e.preventDefault();});
+sig.addEventListener("touchend",()=>drawing=false);
 
-/* ===== Canvas firma ===== */
-const sig=$("#sig"),ctx=sig.getContext("2d");let drawing=false,hasStroke=false,last={x:0,y:0};
-function fit(){const r=Math.max(window.devicePixelRatio||1,1);const w=sig.clientWidth||300,h=sig.clientHeight||200;
-  sig.width=Math.round(w*r);sig.height=Math.round(h*r);ctx.setTransform(1,0,0,1,0,0);ctx.scale(r,r);
-  ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=2.5;ctx.strokeStyle="#111";}
-fit();
-function clearSig(){ctx.clearRect(0,0,sig.width,sig.height);hasStroke=false}
-function pos(e){const r=sig.getBoundingClientRect();const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;return{x,y}}
-function start(e){drawing=true;hasStroke=true;last=pos(e);e.preventDefault()}
-function move(e){if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault();}
-function end(){drawing=false}
-window.addEventListener("resize",()=>{const img=sig.toDataURL("image/png");fit();const im=new Image();im.onload=()=>ctx.drawImage(im,0,0,sig.clientWidth,sig.clientHeight);im.src=img});
-sig.addEventListener("mousedown",start);sig.addEventListener("mousemove",move);window.addEventListener("mouseup",end);
-sig.addEventListener("touchstart",start,{passive:false});sig.addEventListener("touchmove",move,{passive:false});sig.addEventListener("touchend",end,{passive:false});
+function clearSig(){ ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false; status("Firma borrada."); }
+function status(t){ document.getElementById("status").textContent=t; }
+function beep(){ try{ const a=document.getElementById("beep_ok"); a.currentTime=0; a.play().catch(()=>{});}catch(_){} }
 
-/* ===== Enviar ===== */
-$("#btnClear").onclick=()=>{ clearSig(); status("Firma borrada."); };
-
-$("#btnEnviar").onclick=async()=>{
-  if(sending) return;
-  if(!nombreActual||!tipoActual){ status("Pulsa un botón primero."); return; }
+document.getElementById("btnEnviar").onclick=async()=>{
+  if(!nombreActual||!tipoActual){ status("Selecciona trabajador y tipo."); return; }
   if(!hasStroke){ status("Firma requerida."); return; }
 
-  sending=true; disable(true); status("Enviando…");
+  status("Enviando...");
   try{
-    const blob = await new Promise(res=> sig.toBlob(b=>res(b),"image/jpeg",JPEG_QUALITY));
+    const dataURL = sig.toDataURL("image/jpeg", JPEG_QUALITY);
     const txId = "tx_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
 
-    const fd = new FormData();
+    const fd=new FormData();
     fd.append("nombre", nombreActual);
     fd.append("tipo", tipoActual);
-    fd.append("modo", "firma");
+    fd.append("modo","firma");
     fd.append("txId", txId);
-    fd.append("imagen", blob, "firma.jpg");
+    fd.append("imagen", dataURL);
 
-    const r = await fetch(ENDPOINT, { method:"POST", body:fd }); // Apps Script acepta CORS
-    // No dependemos del body; con que no falle la red es suficiente
+    await fetch(ENDPOINT,{method:"POST",body:fd});
+
     beep();
-    const h=new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-    status(`OK: ${nombreActual} — enviado ${h}.`);
+    status(`OK: ${nombreActual} — ${tipoActual}`);
     clearSig();
-  }catch(e){
-    status("Error de red.");
-  }finally{
-    sending=false; disable(false);
-  }
+  }catch(e){ status("Error: "+e.message); }
 };
-
-function disable(d){ document.querySelectorAll("button").forEach(b=>b.disabled=d); }
-
-/* Beep fiable (gesto del usuario previo) */
-function beep(){
-  try{
-    const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();
-    o.connect(g); g.connect(a.destination);
-    o.frequency.value=880; g.gain.value=.08;
-    o.start(); setTimeout(()=>{ o.stop(); a.close(); }, 130);
-  }catch(_){}
-}
 </script>
 </body>
 </html>
