@@ -1,116 +1,147 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Fichaje con Firma</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Fichaje</title>
 <style>
-  body{
-    background:#f4f6f8; color:#111; font-family:system-ui, Arial, sans-serif;
-    min-height:100vh; margin:0; padding:20px;
-    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-  }
-  h1{ font-size:20px; margin-bottom:8px; }
-  p.small{ color:#555; font-size:13px; margin-top:0; margin-bottom:16px; }
-  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:600px; margin-bottom:20px; }
+  :root{--w:820px;--gap:10px}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,Arial,sans-serif;color:#111}
+  body{background:#f3f5f7;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:var(--w);padding:18px}
+  h1{margin:6px 0 2px;font-size:22px;text-align:center}
+  .sub{margin:0 0 14px;text-align:center;color:#666;font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:820px;margin:0 auto}
+  @media (max-width:620px){.grid{grid-template-columns:1fr}}
   .btn{
-    padding:16px; font-size:14px; font-weight:700;
-    border:0; border-radius:10px; cursor:pointer; color:#fff;
+    padding:12px 14px;height:46px;border:0;border-radius:12px;cursor:pointer;
+    font-weight:800;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.06);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
   }
-  .entrada{ background:#22c55e; }
-  .salida{ background:#dc2626; }
-  canvas{ border:2px dashed #999; border-radius:10px; background:#fff; touch-action:none; width:100%; height:180px; }
-  .actions{ margin-top:10px; display:flex; gap:10px; }
-  .actions button{
-    flex:1; padding:12px; border:0; border-radius:8px; font-weight:700; cursor:pointer;
-  }
-  .clear{ background:#e5e7eb; }
-  .send{ background:#0f62fe; color:#fff; }
-  #status{ margin-top:14px; font-size:14px; color:#333; }
+  .in{background:#22a559} .out{background:#d04444}
+  .card{margin:12px auto 0;border:1px solid #e3e7ee;border-radius:12px;background:#fff;max-width:820px}
+  .card .pad{padding:10px}
+  #sig{width:100%;height:140px;background:#fff;border:1.5px dashed #cbd5e1;border-radius:10px;touch-action:none}
+  .actions{display:flex;gap:8px;justify-content:center;padding:10px}
+  .actions .b{padding:10px 14px;border:0;border-radius:10px;font-weight:800;cursor:pointer}
+  .clear{background:#eef1f5;color:#111}
+  .send{background:#1366ff;color:#fff}
+  .status{margin-top:6px;text-align:center;font-size:12px;color:#444}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 </head>
 <body>
-  <h1>Fichaje Empresa</h1>
-  <p class="small">Pulsa tu botón, firma y envía.</p>
+<div class="wrap">
+  <h1>Fichaje</h1>
+  <div class="sub">Pulsa tu botón, firma y envía.</div>
 
-  <div class="grid">
-    <button class="btn entrada" onclick="pick('Marcos Bernal Ortega','entrada')">Marcos Bernal Ortega — ENTRADA</button>
-    <button class="btn salida"  onclick="pick('Marcos Bernal Ortega','salida')">Marcos Bernal Ortega — SALIDA</button>
-    <button class="btn entrada" onclick="pick('Carla Gomez Torres','entrada')">Carla Gomez Torres — ENTRADA</button>
-    <button class="btn salida"  onclick="pick('Carla Gomez Torres','salida')">Carla Gomez Torres — SALIDA</button>
+  <div id="grid" class="grid"></div>
+
+  <div class="card">
+    <div class="pad"><canvas id="sig"></canvas></div>
+    <div class="actions">
+      <button class="b clear" id="btnClear">Borrar</button>
+      <button class="b send"  id="btnEnviar">Enviar</button>
+    </div>
   </div>
 
-  <canvas id="sig"></canvas>
-  <div class="actions">
-    <button class="clear" onclick="clearSig()">Borrar</button>
-    <button class="send" id="btnEnviar">Enviar</button>
-  </div>
+  <div class="status"><span id="status">Listo.</span> · <span id="clock" class="mono"></span></div>
+</div>
 
-  <div id="status">Listo.</div>
-
-  <audio id="beep_ok" preload="auto">
-    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav" />
-  </audio>
+<audio id="beep_ok" preload="auto">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBCAAAAB8AAA==" type="audio/wav"/>
+</audio>
 
 <script>
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
-const JPEG_QUALITY = 0.8;
+/* ===== CONFIG ===== */
+const ENDPOINT="https://script.google.com/macros/s/AKfycbxlR17AJQw87pZgALcfRTE__1ud65aXrRj7B0OG7tu3Lj5s1bCsFRw09WS81qDa2Q-k/exec";
+const JPEG_QUALITY=0.85;
+const WORKERS=[
+  "Marcos Bernal Ortega",
+  "Carla Gomez Torres",
+  "Laura Sánchez Vidal",
+  "Javier Torres Molina"
+];
 
-let nombreActual="", tipoActual="";
-function pick(n,t){ nombreActual=n; tipoActual=t; status(`Seleccionado: ${n} → ${t}`); }
+/* ===== UI ===== */
+const $=s=>document.querySelector(s);
+const grid=$("#grid"),statusEl=$("#status"),clock=$("#clock");
+let nombre=null,tipo=null,sending=false;
 
-const sig = document.getElementById("sig");
-const ctx = sig.getContext("2d");
-let drawing=false, hasStroke=false, last={x:0,y:0};
+/* reloj */
+setInterval(()=>{const d=new Date();clock.textContent=d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})},250);
 
-function resizeCanvas(){
-  const ratio = window.devicePixelRatio||1;
-  sig.width = sig.clientWidth*ratio;
-  sig.height= sig.clientHeight*ratio;
-  ctx.scale(ratio,ratio);
-  ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=2; ctx.strokeStyle="#000";
+/* botones trabajadores */
+function render(){
+  grid.innerHTML="";
+  for(const n of WORKERS){
+    const bIn = document.createElement("button");
+    bIn.className="btn in"; bIn.textContent=`${n} — ENTRADA`;
+    bIn.onclick=()=>pick(n,"entrada"); grid.appendChild(bIn);
+
+    const bOut= document.createElement("button");
+    bOut.className="btn out"; bOut.textContent=`${n} — SALIDA`;
+    bOut.onclick=()=>pick(n,"salida"); grid.appendChild(bOut);
+  }
 }
-resizeCanvas(); window.onresize=resizeCanvas;
+render();
 
-function pos(ev){
-  const r=sig.getBoundingClientRect();
-  return { x:(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left,
-           y:(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top };
-}
-sig.addEventListener("mousedown",e=>{drawing=true; last=pos(e);});
-sig.addEventListener("mousemove",e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;hasStroke=true;});
-window.addEventListener("mouseup",()=>drawing=false);
-sig.addEventListener("touchstart",e=>{drawing=true; last=pos(e); e.preventDefault();});
-sig.addEventListener("touchmove",e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;hasStroke=true; e.preventDefault();});
-sig.addEventListener("touchend",()=>drawing=false);
+function pick(n,t){ if(sending) return; nombre=n; tipo=t; setStatus(`Seleccionado: ${n} — ${t.toUpperCase()}. Firma y pulsa Enviar.`); clearSig(); }
 
-function clearSig(){ ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false; status("Firma borrada."); }
-function status(t){ document.getElementById("status").textContent=t; }
-function beep(){ try{ const a=document.getElementById("beep_ok"); a.currentTime=0; a.play().catch(()=>{});}catch(_){} }
+/* ===== firma ===== */
+const sig=$("#sig"),ctx=sig.getContext("2d");
+let drawing=false,hasStroke=false,last={x:0,y:0};
+function fit(){const r=Math.max(devicePixelRatio||1,1);const w=sig.clientWidth||600,h=sig.clientHeight||140;
+  sig.width=Math.round(w*r); sig.height=Math.round(h*r); ctx.setTransform(1,0,0,1,0,0); ctx.scale(r,r);
+  ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=2.5; ctx.strokeStyle="#111";}
+fit(); addEventListener("resize",()=>{const img=sig.toDataURL(); fit(); const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,sig.clientWidth,sig.clientHeight); im.src=img;});
 
-document.getElementById("btnEnviar").onclick=async()=>{
-  if(!nombreActual||!tipoActual){ status("Selecciona trabajador y tipo."); return; }
-  if(!hasStroke){ status("Firma requerida."); return; }
+function pos(e){const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y};}
+function start(e){drawing=true; last=pos(e); e.preventDefault();}
+function move(e){if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; hasStroke=true; e.preventDefault();}
+function end(){drawing=false;}
+sig.addEventListener("mousedown",start); sig.addEventListener("mousemove",move); addEventListener("mouseup",end);
+sig.addEventListener("touchstart",start,{passive:false}); sig.addEventListener("touchmove",move,{passive:false}); sig.addEventListener("touchend",end);
 
-  status("Enviando...");
+/* acciones */
+$("#btnClear").onclick=()=>{ clearSig(); setStatus("Firma borrada."); };
+$("#btnEnviar").onclick=send;
+
+function clearSig(){ ctx.clearRect(0,0,sig.width,sig.height); hasStroke=false; }
+function setStatus(t){ statusEl.textContent=t; }
+function disable(d){ document.querySelectorAll("button").forEach(b=>b.disabled=d); }
+function beep(){ try{ const a=$("#beep_ok"); a.currentTime=0; a.play().catch(()=>{});}catch(_){ } }
+
+/* ===== envío (dataURL) ===== */
+async function send(){
+  if(sending) return;
+  if(!nombre||!tipo){ setStatus("Selecciona trabajador y tipo."); return; }
+  if(!hasStroke){ setStatus("Firma requerida."); return; }
+
+  sending=true; disable(true); setStatus("Enviando…");
   try{
-    const dataURL = sig.toDataURL("image/jpeg", JPEG_QUALITY);
+    const dataURL = sig.toDataURL("image/jpeg", JPEG_QUALITY);   // base64
     const txId = "tx_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
 
     const fd=new FormData();
-    fd.append("nombre", nombreActual);
-    fd.append("tipo", tipoActual);
-    fd.append("modo","firma");
-    fd.append("txId", txId);
+    fd.append("nombre", nombre);
+    fd.append("tipo",   tipo);
+    fd.append("modo",   "firma");
+    fd.append("txId",   txId);
     fd.append("imagen", dataURL);
 
     await fetch(ENDPOINT,{method:"POST",body:fd});
 
     beep();
-    status(`OK: ${nombreActual} — ${tipoActual}`);
+    const h=new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    setStatus(`OK: ${nombre} — ${tipo} ${h}`);
     clearSig();
-  }catch(e){ status("Error: "+e.message); }
-};
+  }catch(e){
+    setStatus("Error de red");
+  }finally{
+    sending=false; disable(false);
+  }
+}
 </script>
 </body>
 </html>
